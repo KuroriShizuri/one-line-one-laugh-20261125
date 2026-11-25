@@ -8,7 +8,7 @@ One funny line, 74 characters, whole enough to land on its own:
 
 > I told my therapist I fear commitment, so I ghosted my own wedding. Twice.
 
-The joke: a therapy setup telegraphs a commitment-phobia cliché, then the punch inverts it — he didn't avoid commitment in the abstract, he no-showed his own wedding — and the one-word "Twice" lands as a second beat with zero wasted words.
+The joke: a therapy setup telegraphs a commitment-phobia cliché, then the punch inverts it — he didn't avoid commitment in the abstract, he no-showed his own wedding — and the one-word "Twice" lands as a second beat with zero wasted words. Setup, inversion, and a one-word tag, all inside 74 characters — the line is short enough that the tag reads as a second joke rather than a footnote.
 
 ## Run it
 

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """One Line, One Laugh - make.fun entry.
 
-Writes exactly one funny line (at most 140 characters) to
-$MAKEFUN_OUTPUT_DIR/entry.txt. Stdlib only, deterministic, no network."""
+The program writes exactly one funny line of at most 140 characters
+to $MAKEFUN_OUTPUT_DIR/entry.txt. The line is a constant in this file,
+so every run produces the same output. Stdlib only, deterministic,
+no network.
+"""
 import os
 import sys
 
@@ -11,8 +14,11 @@ MAX_CHARS = 140
 
 
 def validate(text):
+    """Check a candidate line against the one-line, 140-char gates."""
     if not text or not text.strip():
         raise ValueError("entry is empty or whitespace-only")
+    # The file holds the line plus one trailing newline, so the gate
+    # counts that extra byte as well.
     if len(text) + 1 > MAX_CHARS:
         raise ValueError(
             "entry file would be %d chars, over the %d-char gate"
@@ -24,7 +30,12 @@ def validate(text):
 
 
 def validate_written(path):
-    """Read entry.txt back from disk and re-validate the artifact itself."""
+    """Read entry.txt back from disk and re-check the artifact itself.
+
+    Validating the file on disk (rather than only the in-memory string)
+    catches encoding or write errors that would otherwise ship
+    silently: the artifact is what gets graded, not the constant.
+    """
     with open(path, "rb") as f:
         raw = f.read()
     try:
@@ -38,6 +49,7 @@ def validate_written(path):
 
 
 def write_entry():
+    """Write the validated line to entry.txt and confirm the round trip."""
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", ".")
     target = os.path.join(out_dir, "entry.txt")
     os.makedirs(out_dir, exist_ok=True)
