@@ -1,84 +1,94 @@
 #!/usr/bin/env python3
-"""One Line, One Laugh - make.fun entry.
+"""One line, one laugh: commitment issues, taken to their conclusion.
 
-The program writes exactly one funny line of at most 140 characters
-to $MAKEFUN_OUTPUT_DIR/entry.txt. The line is a constant in this file,
-so every run produces the same output. Stdlib only, deterministic,
-no network.
+The entry is a single joke line — a therapy confession about fearing
+commitment, escalated to ghosting one's own wedding, twice. The script
+below keeps the joke inside the competition's 140-character, one-line
+limit and delivers it as entry.txt.
+
+Run it three ways:
+    python3 main.py              write entry.txt
+    python3 main.py --check      only validate, write nothing
+    python3 main.py --self-test  validate, write, then re-read the file
+                                 and confirm it is byte-for-byte right
+
+MAKEFUN_OUTPUT_DIR picks the output folder (current directory if the
+variable is missing). The script is deterministic, uses only the
+standard library, and never touches the network.
 """
+
+from pathlib import Path
 import os
 import sys
 
-ENTRY = 'I told my therapist I fear commitment, so I ghosted my own wedding. Twice.'
-MAX_CHARS = 140
+ENTRY = "I told my therapist I fear commitment, so I ghosted my own wedding. Twice."
+
+LIMIT_CHARS = 140
+FILE_NAME = "entry.txt"
 
 
-def validate(text):
-    """Check a candidate line against the one-line, 140-char gates."""
-    if not text or not text.strip():
-        raise ValueError("entry is empty or whitespace-only")
-    # The file holds the line plus one trailing newline, so the gate
-    # counts that extra byte as well.
-    if len(text) + 1 > MAX_CHARS:
-        raise ValueError(
-            "entry file would be %d chars, over the %d-char gate"
-            % (len(text) + 1, MAX_CHARS)
-        )
-    if "\n" in text or "\r" in text:
-        raise ValueError("entry must be a single line")
-    return text
+class EntryError(Exception):
+    """Raised when the entry or its written form breaks a rule."""
 
 
-def validate_written(path):
-    """Read entry.txt back from disk and re-check the artifact itself.
+def guard(text):
+    """Raise EntryError naming the first broken rule, if any.
 
-    Validating the file on disk (rather than only the in-memory string)
-    catches encoding or write errors that would otherwise ship
-    silently: the artifact is what gets graded, not the constant.
+    The length limit is checked first because it is the rule most likely
+    to break when the joke is edited; the shape rules follow.
     """
-    with open(path, "rb") as f:
-        raw = f.read()
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise ValueError("entry.txt is not valid UTF-8: %s" % exc)
-    validate(text.rstrip("\n"))
-    if text.count("\n") > 1:
-        raise ValueError("entry.txt must be a single line")
-    return text
+    if not text:
+        raise EntryError("entry is empty")
+    if len(text) > LIMIT_CHARS:
+        raise EntryError(
+            "entry is %d characters, the limit is %d"
+            % (len(text), LIMIT_CHARS)
+        )
+    if "\r" in text:
+        raise EntryError("entry contains a carriage return")
+    if text.count("\n") != 0:
+        raise EntryError("entry must be a single line with no newline inside")
 
 
-def write_entry():
-    """Write the validated line to entry.txt and confirm the round trip."""
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", ".")
-    target = os.path.join(out_dir, "entry.txt")
-    os.makedirs(out_dir, exist_ok=True)
-    data = (validate(ENTRY) + "\n").encode("utf-8")
-    with open(target, "wb") as f:
-        f.write(data)
-    with open(target, "rb") as f:
-        if f.read() != data:
-            raise ValueError("entry.txt round-trip mismatch")
-    validate_written(target)
-    return target
+def target_file():
+    """Return the entry.txt path, creating the output folder as needed."""
+    folder = Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or ".")
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / FILE_NAME
+
+
+def persist():
+    """Write the entry and verify the artifact by reading it back."""
+    guard(ENTRY)
+    path = target_file()
+    encoded = (ENTRY + "\n").encode("utf-8")
+    path.write_bytes(encoded)
+    if path.read_bytes() != encoded:
+        raise EntryError("entry.txt on disk does not match the entry")
+    decoded = path.read_text(encoding="utf-8")
+    if decoded != ENTRY + "\n":
+        raise EntryError("entry.txt decoded to different text")
+    guard(decoded[:-1])
+    print("wrote %s (%d bytes)" % (path, len(encoded)))
 
 
 def main(argv):
-    if "--self-test" in argv:
-        validate(ENTRY)
-        print("self-test ok: %d chars" % len(ENTRY))
-        return 0
-    if "--check" in argv:
-        validate(ENTRY)
-        print("check ok: %d chars, within %d" % (len(ENTRY), MAX_CHARS))
-        return 0
     try:
-        write_entry()
-    except ValueError as exc:
-        print("invalid entry: %s" % exc, file=sys.stderr)
+        if "--check" in argv:
+            guard(ENTRY)
+            print("check ok: one line, %d characters" % len(ENTRY))
+        elif "--self-test" in argv:
+            persist()
+            print("self-test ok")
+        elif len(argv) == 1:
+            persist()
+        else:
+            raise EntryError("unrecognised arguments: %s" % " ".join(argv[1:]))
+    except EntryError as exc:
+        print("error: %s" % exc, file=sys.stderr)
         return 1
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    raise SystemExit(main(sys.argv))
